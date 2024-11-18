@@ -1,0 +1,10 @@
+langchain
+langgraph
+langchain_groq
+langchain_huggingface
+langchain_community
+tiktoken
+langchainhub
+chromadb
+arxiv
+wikipedia
