@@ -2,10 +2,10 @@ from embeddings.hfEmbedding import HFEmbedding
 from vector_store.chroma_db import ChromaVectorStore
 from langchain.schema import Document
 from document_loader.webLoader import WebLoader
-from document_splitter import RSTextSplitter
+from document_splitter import RSTextSplitter, SemanticSplitter
 embedding_model = HFEmbedding("all-mpnet-base-v2")
 
-vector_store = ChromaVectorStore(collection_name="ex2",embeddings=embedding_model.embeddings)
+vector_store = ChromaVectorStore(collection_name="ex3",embeddings=embedding_model.embeddings)
 
 # Add documents  to the vector store
 # documents = [Document(page_content = "This is a test 2 document", metadata={"source": "ex1"}),
@@ -29,7 +29,7 @@ docs = WebLoader("https://viajsc.com")
 
 documents = docs.loads()
 
-documents = RSTextSplitter(documents=documents).split_documents(chunk_size=512, chunk_overlap=128)
+documents = SemanticSplitter(embedding=embedding_model).splits(documents=documents)
 
 print(documents)
 

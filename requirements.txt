@@ -3,6 +3,7 @@ langgraph
 langchain_groq
 langchain_huggingface
 langchain_community
+langchian_experimental
 tiktoken
 langchainhub
 chromadb
