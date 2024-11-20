@@ -9,3 +9,4 @@ langchainhub
 chromadb
 arxiv
 wikipedia
+google-generativeai 
