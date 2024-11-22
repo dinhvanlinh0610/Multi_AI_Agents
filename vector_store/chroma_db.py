@@ -11,7 +11,7 @@ class ChromaVectorStore():
             embeddings (Embeddings, optional): Embeddings object (have function embed_documents). Defaults to None.
         """
         self.collection_name = collection_name
-        self.embedding_function = embeddings
+        self.embedding_function = embeddings.embeddings
         self.persist_directory = "./data/chroma_db"
         self.chroma = Chroma(self.collection_name, 
                              self.embedding_function, 
@@ -26,7 +26,7 @@ class ChromaVectorStore():
         """
         retriever = self.chroma.as_retriever(
             search_type = "mmr",
-            search_kwargs = {"k": 4, "fetch_k": 5}
+            search_kwargs = {"k": 3, "fetch_k": 5}
         )
         return retriever
         

@@ -7,6 +7,7 @@ from llm import GroqLLM, GeminiLLM
 from query_router import QueryRouter
 from vector_store import ChromaVectorStore
 import streamlit as st
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -86,7 +87,7 @@ if language_choice == "Tiếng Anh":
     if st.session_state.language != "en":
         st.session_state.language = "en"
         if st.session_state.get("embedding_model_name") != "all-mpnet-base-v2":
-            st.session_state.embedding_model = "all-mpnet-base-v2"
+            st.session_state.embedding_model = HFEmbedding("all-mpnet-base-v2")
             st.session_state.embedding_model_name = "all-mpnet-base-v2"
         st.success("Đã chọn ngôn ngữ Tiếng Anh với model: all-mpnet-base-v2")
 
@@ -94,7 +95,7 @@ elif language_choice == "Tiếng Việt":
     if st.session_state.language != "vi":
         st.session_state.language = "vi"
         if st.session_state.get("embedding_model_name") != "keepitreal/vietnamese-sbert":
-            st.session_state.embedding_model = "keepitreal/vietnamese-sbert"
+            st.session_state.embedding_model = HFEmbedding("keepitreal/vietnamese-sbert")
             st.session_state.embedding_model_name = "keepitreal/vietnamese-sbert"
         st.success("Đã chọn ngôn ngữ Tiếng Việt với model: keepitreal/vietnamese-sbert")
 
@@ -137,9 +138,48 @@ if uploaded_files is not None:
             st.error("File không hợp lệ")
 
     if all_data:
-        documents = RSTextSplitter(documents=all_data[0]).split_documents(
-            chunk_size=st.session_state.chunk_size,
-            chunk_overlap=st.session_state.chunk_overlap
+
+        chunk_option = st.selectbox(
+            "Chọn cách chia document",
+            ["None" ,"Recursive Splitter", "Semantic Splitter"]
         )
-        # Hiển thị document sau khi split
-        st.text_area("Tài liệu sau khi chunk",documents, height=200)
+        print(chunk_option)
+            
+        if chunk_option == "Recursive Splitter":
+            st.session_state.chunk_option = "Recursive Splitter"
+            documents = RSTextSplitter(documents=all_data[0]).split_documents(
+                chunk_size=st.session_state.chunk_size,
+                chunk_overlap=st.session_state.chunk_overlap
+            )
+            st.success("Đã chia document theo rsTextSplitter")
+                # Hiển thị document sau khi split
+            # st.text_area("Tài liệu sau khi chunk",documents, height=200)
+            
+        
+        elif chunk_option == "Semantic Splitter":
+            st.session_state.chunk_option = "Semantic Splitter"
+
+
+            embeddings = st.session_state.embedding_model
+            documents = SemanticSplitter(embedding=embeddings).splits(
+                all_data[0]
+            )
+            st.success("Đã chia document theo semanticSplitter")
+                # Hiển thị document sau khi split
+            # st.text_area("Tài liệu sau khi chunk",documents, height=200)
+        chunk_records = []
+
+        for doc in documents:
+            chunk_records.append(doc.page_content)
+        # print(chunk_records)
+        chunk_records = pd.DataFrame(chunk_records)
+        # print("pass")
+        st.write("Tài liệu sau khi chunk với ", len(chunk_records), "chunks")
+
+        st.dataframe(chunk_records, use_container_width=True, height=300)
+        
+    if st.button("Lưu tài liệu vào vector store"):
+        vector_store = ChromaVectorStore("documents", st.session_state.embedding_model)
+        vector_store.add(documents)
+        st.success("Đã lưu tài liệu vào vector store")
+        st.session_state.data_saved_success = True
