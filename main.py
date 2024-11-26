@@ -143,7 +143,7 @@ if uploaded_files is not None:
             "Chọn cách chia document",
             ["None" ,"Recursive Splitter", "Semantic Splitter"]
         )
-        print(chunk_option)
+        # print(chunk_option)
             
         if chunk_option == "Recursive Splitter":
             st.session_state.chunk_option = "Recursive Splitter"
@@ -168,18 +168,67 @@ if uploaded_files is not None:
                 # Hiển thị document sau khi split
             # st.text_area("Tài liệu sau khi chunk",documents, height=200)
         chunk_records = []
+        if st.session_state.data_saved_success == False:
+            for doc in documents:
+                chunk_records.append(doc.page_content)
+            # print(chunk_records)
+            chunk_records = pd.DataFrame(chunk_records)
+            # print("pass")
+            st.write("Tài liệu sau khi chunk với ", len(chunk_records), "chunks")
 
-        for doc in documents:
-            chunk_records.append(doc.page_content)
-        # print(chunk_records)
-        chunk_records = pd.DataFrame(chunk_records)
-        # print("pass")
-        st.write("Tài liệu sau khi chunk với ", len(chunk_records), "chunks")
-
-        st.dataframe(chunk_records, use_container_width=True, height=300)
-        
+            st.dataframe(chunk_records, use_container_width=True, height=300)
+            
     if st.button("Lưu tài liệu vào vector store"):
-        vector_store = ChromaVectorStore("documents", st.session_state.embedding_model)
-        vector_store.add(documents)
+        st.session_state.vector_store = ChromaVectorStore("documents", st.session_state.embedding_model)
+        st.session_state.vector_store.add(documents)
         st.success("Đã lưu tài liệu vào vector store")
         st.session_state.data_saved_success = True
+
+### --- Tạo Graph --- ###
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+st.session_state.llm = GroqLLM("llama3-8b-8192")
+st.session_state.query_router = QueryRouter(llm=st.session_state.llm, topic="VIA company").question_router
+def route_question( query_router, question):
+    print("---ROUTE QUESTION---")
+    route_query = query_router.invoke(question)
+    
+    if route_query.datasource == "vector_store":
+        print("---ROUTE QUESTION TO RAG---")
+        return "vector_store"
+    
+    elif route_query.datasource == "wiki_search":
+        print("---ROUTE QUESTION TO WIKI SEARCH---")
+        return "wiki_search"
+    elif route_query.datasource == "llm":
+        print("---ROUTE QUESTION TO LLM---")
+        return "llm"
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+        
+if prompt :=  st.chat_input("Nhập câu hỏi của bạn"):
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("bot"):
+        st.markdown("Đang xử lý ...")
+        # retrieved_docs = vector_store.retrieve(prompt, st.session_state.number_docs_retrieval)
+        # prompt = " ".join(retrieved_docs)
+        route = route_question(st.session_state.query_router, prompt)
+        if route == "vector_store":
+            print("---ROUTE TO VECTOR STORE---")
+            response = st.session_state.vector_store.query_with_score(prompt, st.session_state.number_docs_retrieval)
+            st.markdown(response)
+        elif route == "wiki_search":
+            print("---ROUTE TO WIKI SEARCH---")
+            response = wiki(prompt)
+        elif route == "llm":
+            print("---ROUTE TO LLM---")
+            response = st.session_state.llm.llm.invoke(prompt)
+            st.markdown(response.content)
+
+        st.session_state.chat_history.append({"role": "bot", "content": response})
+        
+
